@@ -1,0 +1,55 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code when working with code in this repository.
+
+## Project Overview
+
+<!-- TODO: Describe the research question, models, and datasets -->
+
+## Environment
+
+- **Package manager**: UV (`uv sync` to install, `uv run` to execute)
+- **Python**: 3.12
+- **Key deps**: <!-- TODO: list key dependencies -->
+- **GPU required**: <!-- TODO: yes/no and what for -->
+
+## Repository Structure
+
+All interactive Jupyter notebook work lives in `./notebooks/`.
+
+This is a notebook-based research project. Test ideas or hypotheses in `./notebooks/` using Jupyter notebooks. When the project grows to require multiple notebooks or substantial code, refactor frequently used functions or classes into `./src/{{PACKAGE_NAME}}/`.
+
+You can import the package with `import {{PACKAGE_NAME}}` (see pyproject.toml).
+
+## External Resources
+
+<!-- TODO: List HuggingFace models, datasets, or other external resources -->
+
+## Known Errors and Gotchas
+
+### Notebook Execution Policy
+- **Stop on error**: When running notebook cells sequentially, if a cell produces an error, STOP immediately. Do NOT skip it and continue to the next cell. Instead, diagnose the error, fix the cell using `overwrite_cell_source`, and re-execute it before proceeding.
+
+### Remote Jupyter Environment (jupyter-mcp-server)
+- **Shared filesystem**: The Jupyter kernel and the local Bash tool share the same filesystem. Files created by `mcp__jupyter__execute_code` or `savefig()` in notebook cells are immediately visible via Bash, Glob, Read, etc. Do NOT treat them as separate filesystems — there is no need to use `execute_code` for file operations that Bash or other local tools can handle.
+- **Parallel cell reading**: When reading many notebook cells for analysis/planning, do NOT read them sequentially one-by-one. Instead, launch multiple `Task` subagents in parallel (e.g., 4 agents each reading a batch of cells). This dramatically reduces latency.
+- The notebook is managed via **jupyter-mcp-server**. Use `mcp__jupyter__*` tools for all notebook operations (`execute_cell`, `execute_code`, `read_cell`, `overwrite_cell_source`, `restart_notebook`, etc.).
+- The Jupyter kernel runs on a **remote compute node**, not on the local machine. Bash tool commands run locally and cannot see or kill remote processes. To manage **GPU processes** (e.g., `nvidia-smi`, `kill`, `os.kill`), always use `mcp__jupyter__execute_code` so the command runs on the same node as the GPU. For **file operations** (mkdir, mv, ls, etc.), either Bash or `execute_code` works — they see the same files.
+- **Single GPU process rule**: Before every `restart_notebook`, first check GPU processes via `mcp__jupyter__execute_code` with `nvidia-smi --query-compute-apps=pid --format=csv,noheader`, identify the current kernel PID (`os.getpid()`), and `os.kill(pid, signal.SIGKILL)` all *other* GPU processes. After restart, verify only one process is using the GPU. Stale kernels from previous restarts leak GPU memory and will eventually cause OOM.
+- If the kernel crashes from OOM, use `mcp__jupyter__restart_notebook` to get a fresh kernel, then re-execute cells from the beginning.
+- **Kernel selection on restart**: After `restart_notebook`, always verify the kernel is connected before executing cells. If `execute_cell` times out on the first cell after restart, use `list_kernels` to check kernel state, then `unuse_notebook` + `use_notebook` with an explicit `kernel_id` to reconnect.
+
+### Matplotlib / Plotting
+- **savefig paths**: Save all figures to `./attachements/`. Use `save_and_show()` from the project's plotting module if available.
+- All saved figure filenames should use the notebook filename as a prefix and include a number starting from 00 (e.g., `01_experiment_00_fig_desc.png`).
+
+## Experiment Workflow
+
+When creating a new experiment notebook:
+
+1. **Create notebook** in `./notebooks/` following the naming convention `NN_short_description.ipynb`.
+2. **Standard setup cells**: Each notebook starts with boilerplate — data/model loading, imports, constants, experiment-specific config.
+3. **Probe/metric validation**: Always include a train/test split or cross-validation sanity check before interpreting derived metrics. Never evaluate on training data.
+4. **Figures**: Save via the project's plotting utility to `attachements/` with the `NN_desc_XX_fig_desc.png` naming convention.
+5. **Run all cells** sequentially, fixing errors before proceeding (see Notebook Execution Policy).
+6. **Generate report**: Use `/report NN_short_description` to create a dated report in `research_notes/YYYY-MM-DD-HHMMSS_experiment_title.md` with embedded figures and key results tables.

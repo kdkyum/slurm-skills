@@ -1,0 +1,101 @@
+---
+name: init-project
+description: Initialize a new research project with standard directory structure, CLAUDE.md, pyproject.toml, and skills. Use at the start of any new notebook-based research project. Run from within the project folder — the folder name becomes the project name.
+argument-hint: [short-description]
+disable-model-invocation: true
+---
+
+# Initialize Research Project
+
+Set up a new research project in the current working directory.
+
+- **Project name**: `basename $(pwd)` (e.g., `my-cool-project`)
+- **Package name**: hyphens replaced by underscores (e.g., `my_cool_project`)
+- **Description**: `$ARGUMENTS` if provided, else `"Research project"`
+- **Assets**: `~/.claude/skills/init-project/assets/`
+- **Cluster info**: `~/.claude/skills/slurm-info-summary/references/slurm-cluster-summary.md`
+
+## Steps
+
+### 1. Derive names
+
+```bash
+PROJECT_NAME=$(basename $(pwd))
+PACKAGE_NAME=$(echo "$PROJECT_NAME" | tr '-' '_')
+ASSETS="$HOME/.claude/skills/init-project/assets"
+```
+
+### 2. Create directory structure
+
+```bash
+mkdir -p notebooks "src/${PACKAGE_NAME}" attachements research_notes .claude/skills/report
+touch "src/${PACKAGE_NAME}/__init__.py"
+```
+
+### 3. Copy static files (no substitution needed)
+
+```bash
+cp "${ASSETS}/report-SKILL.md" .claude/skills/report/SKILL.md
+cp "${ASSETS}/.mcp.json" .mcp.json
+```
+
+### 4. Copy and substitute CLAUDE.md
+
+```bash
+cp "${ASSETS}/CLAUDE.md.template" CLAUDE.md
+sed -i "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g; s|{{PACKAGE_NAME}}|${PACKAGE_NAME}|g" CLAUDE.md
+```
+
+### 5. Copy and substitute pyproject.toml
+
+Use the skill argument (`$ARGUMENTS`) as description. If empty, use `"Research project"`.
+
+```bash
+DESCRIPTION="<$ARGUMENTS or 'Research project'>"
+cp "${ASSETS}/pyproject.toml.template" pyproject.toml
+sed -i "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g; s|{{PACKAGE_NAME}}|${PACKAGE_NAME}|g; s|{{DESCRIPTION}}|${DESCRIPTION}|g" pyproject.toml
+```
+
+### 6. Generate jlab-mcp.sh from template + cluster info
+
+1. **Read cluster summary** at `~/.claude/skills/slurm-info-summary/references/slurm-cluster-summary.md`.
+   - If it does **not** exist, tell the user: *"Run `/slurm-info-summary` first to gather cluster info."* and **stop**.
+
+2. **Extract values** for a single-GPU shared notebook job from the summary:
+
+   | Variable | What to look for | Example (Raven) |
+   |----------|-----------------|------------------|
+   | `PARTITION` | Shared GPU partition (1 node, shared access, has GPUs) | `gpu1` |
+   | `GPU_TYPE` | GPU model, lowercase | `a100` |
+   | `CPUS` | Physical cores per GPU (total physical cores / GPUs per node) | `18` |
+   | `MEM_MB` | Memory per GPU in MB (convert from GB if needed) | `125000` |
+   | `TIME` | Max walltime for that partition | `1-00:00:00` |
+
+3. **Detect CUDA module**:
+   ```bash
+   CUDA_MODULE=$(module avail cuda 2>&1 | grep -oP 'cuda/[\d.]+' | sort -V | tail -1)
+   ```
+   - If found: `MODULE_LINE="module load ${CUDA_MODULE}"`
+   - If empty: `MODULE_LINE="# no cuda module detected"`
+
+4. **Copy template and substitute**:
+   ```bash
+   cp "${ASSETS}/jlab-mcp.sh.template" jlab-mcp.sh
+   chmod +x jlab-mcp.sh
+   sed -i \
+     -e "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g" \
+     -e "s|{{PARTITION}}|${PARTITION}|g" \
+     -e "s|{{GPU_GRES}}|gpu:${GPU_TYPE}:1|g" \
+     -e "s|{{CPUS_PER_TASK}}|${CPUS}|g" \
+     -e "s|{{MEM_MB}}|${MEM_MB}|g" \
+     -e "s|{{TIME}}|${TIME}|g" \
+     -e "s|{{MODULE_LOAD_CUDA}}|${MODULE_LINE}|g" \
+     jlab-mcp.sh
+   ```
+
+### 7. Print summary
+
+Show what was created and next steps:
+- `uv sync` to install dependencies
+- `sbatch jlab-mcp.sh` to launch Jupyter+MCP on a GPU node
+- Start Claude Code in the project directory
