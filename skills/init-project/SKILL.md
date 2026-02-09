@@ -36,6 +36,7 @@ touch "src/${PACKAGE_NAME}/__init__.py"
 
 ```bash
 cp "${ASSETS}/report-SKILL.md" .claude/skills/report/SKILL.md
+cp "${ASSETS}/plotting.py" "src/${PACKAGE_NAME}/plotting.py"
 ```
 
 ### 4. Copy and substitute CLAUDE.md

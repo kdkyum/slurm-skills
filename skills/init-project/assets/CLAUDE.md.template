@@ -39,7 +39,7 @@ You can import the package with `import {{PACKAGE_NAME}}` (see pyproject.toml).
 - If the kernel crashes from OOM, use `mcp__jlab-mcp__shutdown_session` followed by `mcp__jlab-mcp__start_session_resume_notebook` to get a fresh kernel with notebook state restored.
 
 ### Matplotlib / Plotting
-- **savefig paths**: Save all figures to `./attachements/`. Use `save_and_show()` from the project's plotting module if available.
+- **savefig paths**: Save all figures to `./attachements/`. Use `from {{PACKAGE_NAME}}.plotting import save_and_show`.
 - All saved figure filenames should use the notebook filename as a prefix and include a number starting from 00 (e.g., `01_experiment_00_fig_desc.png`).
 
 ## Experiment Workflow
