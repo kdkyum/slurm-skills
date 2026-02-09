@@ -16,7 +16,7 @@ npx add-skill kdkyum/slurm-skills -a claude-code
 | Skill | Description | Invocation |
 |-------|-------------|------------|
 | `slurm-info-summary` | Detect and cache SLURM cluster info (partitions, GPUs, memory, QOS). Auto-adapts to any SLURM cluster. | `/slurm-info-summary` |
-| `init-project` | Scaffold a notebook-based research project with CLAUDE.md, pyproject.toml, Jupyter+MCP SLURM script, and report skill. Uses cluster info from `slurm-info-summary`. | `/init-project [description]` |
+| `init-project` | Scaffold a notebook-based research project with CLAUDE.md, pyproject.toml, MCP config, and report skill. Uses cluster info from `slurm-info-summary`. | `/init-project [description]` |
 
 ## Setup
 
@@ -25,25 +25,32 @@ npx add-skill kdkyum/slurm-skills -a claude-code
    npx add-skill kdkyum/slurm-skills -a claude-code
    ```
 
-2. Run `/slurm-info-summary` to detect your cluster configuration (one-time per cluster).
+2. Install jlab-mcp (one-time):
+   ```bash
+   uv tool install git+https://github.com/kdkyum/jlab-mcp.git
+   ```
 
-3. Create and initialize a project:
+3. Run `/slurm-info-summary` to detect your cluster configuration (one-time per cluster).
+
+4. Create and initialize a project:
    ```bash
    mkdir my-project && cd my-project
    # then in Claude Code: /init-project "my research description"
    ```
 
-4. Launch Jupyter+MCP:
+5. Launch JupyterLab on a GPU node:
    ```bash
    uv sync
-   sbatch jlab-mcp.sh
+   jlab-mcp start    # in a separate terminal — submits SLURM job and waits
    ```
+
+6. Start Claude Code in the project directory. The `jlab-mcp` MCP server connects automatically.
 
 ## How It Works
 
 ### Cluster-Adaptive Configuration
 
-`slurm-info-summary` runs once to detect your cluster's partitions, GPU types, memory, and QOS limits. `init-project` reads this cached summary to generate a `jlab-mcp.sh` with correct SBATCH directives for your specific cluster — no manual editing of partition names, GPU types, or memory limits.
+`slurm-info-summary` runs once to detect your cluster's partitions, GPU types, memory, and QOS limits. `init-project` reads this cached summary to generate `.mcp.json` with correct SLURM environment variables for your specific cluster — no manual editing of partition names, GPU types, or memory limits.
 
 ### Token-Efficient Templates
 
@@ -59,9 +66,8 @@ slurm-skills/
 │   │   └── assets/                # File templates (cp + sed)
 │   │       ├── CLAUDE.md.template
 │   │       ├── pyproject.toml.template
-│   │       ├── jlab-mcp.sh.template
-│   │       ├── report-SKILL.md
-│   │       └── .mcp.json
+│   │       ├── .mcp.json.template
+│   │       └── report-SKILL.md
 │   └── slurm-info-summary/
 │       ├── SKILL.md               # Skill definition
 │       └── scripts/
@@ -75,8 +81,7 @@ slurm-skills/
 my-project/
 ├── CLAUDE.md                # Claude Code guidance
 ├── pyproject.toml           # UV + hatchling, research deps
-├── jlab-mcp.sh              # SLURM batch script (cluster-specific)
-├── .mcp.json                # MCP server config (updated by jlab-mcp.sh)
+├── .mcp.json                # jlab-mcp config (cluster-specific env vars)
 ├── notebooks/               # Jupyter notebooks
 ├── src/my_project/          # Python package
 ├── attachements/            # Saved figures

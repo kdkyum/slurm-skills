@@ -36,7 +36,6 @@ touch "src/${PACKAGE_NAME}/__init__.py"
 
 ```bash
 cp "${ASSETS}/report-SKILL.md" .claude/skills/report/SKILL.md
-cp "${ASSETS}/.mcp.json" .mcp.json
 ```
 
 ### 4. Copy and substitute CLAUDE.md
@@ -56,7 +55,7 @@ cp "${ASSETS}/pyproject.toml.template" pyproject.toml
 sed -i "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g; s|{{PACKAGE_NAME}}|${PACKAGE_NAME}|g; s|{{DESCRIPTION}}|${DESCRIPTION}|g" pyproject.toml
 ```
 
-### 6. Generate jlab-mcp.sh from template + cluster info
+### 6. Copy and substitute .mcp.json from template + cluster info
 
 1. **Read cluster summary** at `~/.claude/skills/slurm-info-summary/references/slurm-cluster-summary.md`.
    - If it does **not** exist, tell the user: *"Run `/slurm-info-summary` first to gather cluster info."* and **stop**.
@@ -75,27 +74,26 @@ sed -i "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g; s|{{PACKAGE_NAME}}|${PACKAGE_NAME}
    ```bash
    CUDA_MODULE=$(module avail cuda 2>&1 | grep -oP 'cuda/[\d.]+' | sort -V | tail -1)
    ```
-   - If found: `MODULE_LINE="module load ${CUDA_MODULE}"`
-   - If empty: `MODULE_LINE="# no cuda module detected"`
+   - If found: use the module name (e.g., `cuda/12.6`)
+   - If empty: use empty string `""`
 
 4. **Copy template and substitute**:
    ```bash
-   cp "${ASSETS}/jlab-mcp.sh.template" jlab-mcp.sh
-   chmod +x jlab-mcp.sh
+   cp "${ASSETS}/.mcp.json.template" .mcp.json
    sed -i \
-     -e "s|{{PROJECT_NAME}}|${PROJECT_NAME}|g" \
      -e "s|{{PARTITION}}|${PARTITION}|g" \
      -e "s|{{GPU_GRES}}|gpu:${GPU_TYPE}:1|g" \
      -e "s|{{CPUS_PER_TASK}}|${CPUS}|g" \
      -e "s|{{MEM_MB}}|${MEM_MB}|g" \
      -e "s|{{TIME}}|${TIME}|g" \
-     -e "s|{{MODULE_LOAD_CUDA}}|${MODULE_LINE}|g" \
-     jlab-mcp.sh
+     -e "s|{{CUDA_MODULE}}|${CUDA_MODULE}|g" \
+     .mcp.json
    ```
 
 ### 7. Print summary
 
 Show what was created and next steps:
-- `uv sync` to install dependencies
-- `sbatch jlab-mcp.sh` to launch Jupyter+MCP on a GPU node
+- `uv tool install git+https://github.com/kdkyum/jlab-mcp.git` (one-time, if not already installed)
+- `uv sync` to install project dependencies
+- `jlab-mcp start` in a separate terminal to launch JupyterLab on a GPU node
 - Start Claude Code in the project directory

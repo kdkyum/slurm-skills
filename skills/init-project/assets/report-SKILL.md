@@ -11,7 +11,7 @@ Generate a research report for the notebook `$0`.
 
 ## Gather Context
 
-1. **Find the notebook**: Look for `notebooks/$0.ipynb`. Connect to it via `mcp__jupyter__use_notebook` and read all cells with `mcp__jupyter__read_notebook` (detailed format) to extract:
+1. **Find the notebook**: Look for `notebooks/$0.ipynb`. Read it directly using the `Read` tool (the notebook is on the shared filesystem as a `.ipynb` JSON file). Extract:
    - The experiment title from the first markdown cell
    - Method description from markdown cells
    - Code cell outputs (tables, printed results, key metrics)

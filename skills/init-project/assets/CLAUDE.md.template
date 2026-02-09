@@ -28,16 +28,15 @@ You can import the package with `import {{PACKAGE_NAME}}` (see pyproject.toml).
 ## Known Errors and Gotchas
 
 ### Notebook Execution Policy
-- **Stop on error**: When running notebook cells sequentially, if a cell produces an error, STOP immediately. Do NOT skip it and continue to the next cell. Instead, diagnose the error, fix the cell using `overwrite_cell_source`, and re-execute it before proceeding.
+- **Stop on error**: When running notebook cells sequentially, if a cell produces an error, STOP immediately. Do NOT skip it and continue to the next cell. Instead, diagnose the error, fix the cell using `mcp__jlab-mcp__edit_cell`, and re-execute it before proceeding.
 
-### Remote Jupyter Environment (jupyter-mcp-server)
-- **Shared filesystem**: The Jupyter kernel and the local Bash tool share the same filesystem. Files created by `mcp__jupyter__execute_code` or `savefig()` in notebook cells are immediately visible via Bash, Glob, Read, etc. Do NOT treat them as separate filesystems — there is no need to use `execute_code` for file operations that Bash or other local tools can handle.
-- **Parallel cell reading**: When reading many notebook cells for analysis/planning, do NOT read them sequentially one-by-one. Instead, launch multiple `Task` subagents in parallel (e.g., 4 agents each reading a batch of cells). This dramatically reduces latency.
-- The notebook is managed via **jupyter-mcp-server**. Use `mcp__jupyter__*` tools for all notebook operations (`execute_cell`, `execute_code`, `read_cell`, `overwrite_cell_source`, `restart_notebook`, etc.).
-- The Jupyter kernel runs on a **remote compute node**, not on the local machine. Bash tool commands run locally and cannot see or kill remote processes. To manage **GPU processes** (e.g., `nvidia-smi`, `kill`, `os.kill`), always use `mcp__jupyter__execute_code` so the command runs on the same node as the GPU. For **file operations** (mkdir, mv, ls, etc.), either Bash or `execute_code` works — they see the same files.
-- **Single GPU process rule**: Before every `restart_notebook`, first check GPU processes via `mcp__jupyter__execute_code` with `nvidia-smi --query-compute-apps=pid --format=csv,noheader`, identify the current kernel PID (`os.getpid()`), and `os.kill(pid, signal.SIGKILL)` all *other* GPU processes. After restart, verify only one process is using the GPU. Stale kernels from previous restarts leak GPU memory and will eventually cause OOM.
-- If the kernel crashes from OOM, use `mcp__jupyter__restart_notebook` to get a fresh kernel, then re-execute cells from the beginning.
-- **Kernel selection on restart**: After `restart_notebook`, always verify the kernel is connected before executing cells. If `execute_cell` times out on the first cell after restart, use `list_kernels` to check kernel state, then `unuse_notebook` + `use_notebook` with an explicit `kernel_id` to reconnect.
+### Remote Jupyter Environment (jlab-mcp)
+- **Session workflow**: Use `mcp__jlab-mcp__start_new_session` to create a session (starts kernel + creates notebook). Execute code with `mcp__jlab-mcp__execute_code`. When done or switching notebooks, use `mcp__jlab-mcp__shutdown_session`. To resume a previous notebook, use `mcp__jlab-mcp__start_session_resume_notebook`.
+- **Shared filesystem**: The Jupyter kernel and the local Bash tool share the same filesystem. Files created by `mcp__jlab-mcp__execute_code` or `savefig()` in notebook cells are immediately visible via Bash, Glob, Read, etc. Do NOT treat them as separate filesystems — there is no need to use `execute_code` for file operations that Bash or other local tools can handle.
+- The notebook is managed via **jlab-mcp**. Use `mcp__jlab-mcp__*` tools for all notebook operations (`start_new_session`, `execute_code`, `edit_cell`, `add_markdown`, `execute_scratch`, `shutdown_session`, etc.).
+- The Jupyter kernel runs on a **remote compute node**, not on the local machine. Bash tool commands run locally and cannot see or kill remote processes. To manage **GPU processes** (e.g., `nvidia-smi`, `kill`, `os.kill`), always use `mcp__jlab-mcp__execute_scratch` so the command runs on the same node as the GPU. For **file operations** (mkdir, mv, ls, etc.), either Bash or `execute_code` works — they see the same files.
+- **Single GPU process rule**: Before every `shutdown_session` + restart cycle, first check GPU processes via `mcp__jlab-mcp__execute_scratch` with `nvidia-smi --query-compute-apps=pid --format=csv,noheader`, identify the current kernel PID (`os.getpid()`), and `os.kill(pid, signal.SIGKILL)` all *other* GPU processes. After restart, verify only one process is using the GPU. Stale kernels leak GPU memory and will eventually cause OOM.
+- If the kernel crashes from OOM, use `mcp__jlab-mcp__shutdown_session` followed by `mcp__jlab-mcp__start_session_resume_notebook` to get a fresh kernel with notebook state restored.
 
 ### Matplotlib / Plotting
 - **savefig paths**: Save all figures to `./attachements/`. Use `save_and_show()` from the project's plotting module if available.
@@ -47,7 +46,7 @@ You can import the package with `import {{PACKAGE_NAME}}` (see pyproject.toml).
 
 When creating a new experiment notebook:
 
-1. **Create notebook** in `./notebooks/` following the naming convention `NN_short_description.ipynb`.
+1. **Start session** with `mcp__jlab-mcp__start_new_session` using a descriptive experiment name. This creates the notebook in `./notebooks/` following the naming convention `NN_short_description.ipynb`.
 2. **Standard setup cells**: Each notebook starts with boilerplate — data/model loading, imports, constants, experiment-specific config.
 3. **Probe/metric validation**: Always include a train/test split or cross-validation sanity check before interpreting derived metrics. Never evaluate on training data.
 4. **Figures**: Save via the project's plotting utility to `attachements/` with the `NN_desc_XX_fig_desc.png` naming convention.
