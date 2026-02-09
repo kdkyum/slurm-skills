@@ -47,8 +47,6 @@ You can import the package with `import {{PACKAGE_NAME}}` (see pyproject.toml).
 When creating a new experiment notebook:
 
 1. **Start session** with `mcp__jlab-mcp__start_new_session` using a descriptive experiment name. This creates the notebook in `./notebooks/` following the naming convention `NN_short_description.ipynb`.
-2. **Standard setup cells**: Each notebook starts with boilerplate — data/model loading, imports, constants, experiment-specific config.
-3. **Probe/metric validation**: Always include a train/test split or cross-validation sanity check before interpreting derived metrics. Never evaluate on training data.
-4. **Figures**: Save via the project's plotting utility to `attachements/` with the `NN_desc_XX_fig_desc.png` naming convention.
-5. **Run all cells** sequentially, fixing errors before proceeding (see Notebook Execution Policy).
-6. **Generate report**: Use `/report NN_short_description` to create a dated report in `research_notes/YYYY-MM-DD-HHMMSS_experiment_title.md` with embedded figures and key results tables.
+2. **Figures**: Save via the project's plotting utility to `attachements/` with the `NN_desc_XX_fig_desc.png` naming convention.
+3. **Run all cells** sequentially, fixing errors before proceeding (see Notebook Execution Policy).
+4. **Generate report**: Use `/report NN_short_description` to create a dated report in `research_notes/YYYY-MM-DD-HHMMSS_experiment_title.md` with embedded figures and key results tables.
